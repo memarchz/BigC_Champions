@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BigC Champion — ส่งรูปภาพ</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #E8002D;
+    --red-dark: #B8001F;
+    --red-light: #FFF0F3;
+    --yellow: #FFD700;
+    --black: #0A0A0A;
+    --gray-900: #111;
+    --gray-700: #333;
+    --gray-400: #888;
+    --gray-100: #F5F5F5;
+    --gray-50: #FAFAFA;
+    --white: #FFFFFF;
+    --border: #E0E0E0;
+    --success: #00A86B;
+    --success-light: #F0FFF8;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 2px 16px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 40px rgba(0,0,0,0.14);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'IBM Plex Sans Thai', sans-serif;
+    background: var(--gray-50);
+    color: var(--gray-900);
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    background: var(--black);
+    padding: 0;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header-inner {
+    max-width: 720px; margin: 0 auto;
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 24px;
+  }
+  .logo-box {
+    width: 36px; height: 36px;
+    background: var(--red);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 14px; color: white; letter-spacing: -0.5px;
+  }
+  .header-title { color: white; font-size: 15px; font-weight: 500; }
+  .header-sub { color: var(--gray-400); font-size: 12px; font-family: 'IBM Plex Mono', monospace; margin-top: 1px; }
+
+  /* Main */
+  .main { max-width: 720px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  /* Step indicator */
+  .steps {
+    display: flex; align-items: center; gap: 0;
+    margin-bottom: 32px;
+  }
+  .step {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 500;
+    color: var(--gray-400);
+  }
+  .step.active { color: var(--red); }
+  .step.done { color: var(--success); }
+  .step-num {
+    width: 24px; height: 24px; border-radius: 50%;
+    border: 1.5px solid currentColor;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-family: 'IBM Plex Mono', monospace;
+    flex-shrink: 0;
+  }
+  .step.active .step-num { background: var(--red); color: white; border-color: var(--red); }
+  .step.done .step-num { background: var(--success); color: white; border-color: var(--success); }
+  .step-line {
+    flex: 1; height: 1.5px;
+    background: var(--border); margin: 0 8px;
+    min-width: 24px;
+  }
+  .step-line.done { background: var(--success); }
+
+  /* Card */
+  .card {
+    background: white;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 28px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .card-title {
+    font-size: 13px; font-weight: 600;
+    color: var(--gray-400); letter-spacing: 0.08em;
+    text-transform: uppercase; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-title::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  /* Form */
+  .field { margin-bottom: 20px; }
+  .field:last-child { margin-bottom: 0; }
+  label {
+    display: block; font-size: 13px; font-weight: 500;
+    color: var(--gray-700); margin-bottom: 6px;
+  }
+  label span { color: var(--red); margin-left: 2px; }
+  input[type="text"], input[type="date"], select, textarea {
+    width: 100%; padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px; font-family: 'IBM Plex Sans Thai', sans-serif;
+    color: var(--gray-900);
+    background: white;
+    transition: border-color 0.15s;
+    outline: none;
+    appearance: none;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--red);
+    box-shadow: 0 0 0 3px rgba(232,0,45,0.08);
+  }
+  input:disabled, select:disabled {
+    background: var(--gray-50); color: var(--gray-400); cursor: not-allowed;
+  }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media(max-width: 500px) { .field-row { grid-template-columns: 1fr; } }
+
+  /* ID input special */
+  .id-wrap { position: relative; }
+  .id-wrap input { padding-right: 44px; font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.05em; }
+  .id-spinner {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 16px;
+    border: 2px solid var(--border); border-top-color: var(--red);
+    border-radius: 50%;
+    display: none;
+    animation: spin 0.7s linear infinite;
+  }
+  .id-spinner.show { display: block; }
+  @keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
+
+  /* Auto-fill badge */
+  .autofill-badge {
+    display: none; align-items: center; gap: 6px;
+    background: var(--success-light); border: 1px solid #B8F0D8;
+    border-radius: 6px; padding: 8px 12px; margin-top: 10px;
+    font-size: 13px; color: var(--success); font-weight: 500;
+  }
+  .autofill-badge.show { display: flex; }
+  .autofill-badge svg { flex-shrink: 0; }
+
+  /* Photo upload sections */
+  .photo-section { margin-bottom: 24px; }
+  .photo-section:last-child { margin-bottom: 0; }
+  .photo-section-label {
+    font-size: 13px; font-weight: 600; color: var(--gray-700);
+    margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+  }
+  .photo-tag {
+    font-size: 10px; font-family: 'IBM Plex Mono', monospace;
+    background: var(--red); color: white;
+    padding: 2px 7px; border-radius: 4px; letter-spacing: 0.05em;
+  }
+  .photo-tag.bgc { background: var(--gray-900); }
+  .photo-desc { font-size: 12px; color: var(--gray-400); font-weight: 400; margin-left: 4px; }
+
+  .upload-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @media(max-width: 500px) { .upload-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .upload-slot {
+    aspect-ratio: 1;
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius-sm);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer; position: relative; overflow: hidden;
+    transition: border-color 0.15s, background 0.15s;
+    background: var(--gray-50);
+  }
+  .upload-slot:hover { border-color: var(--red); background: var(--red-light); }
+  .upload-slot.has-file { border-style: solid; border-color: var(--success); background: var(--success-light); }
+  .upload-slot input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    width: 100%; height: 100%;
+  }
+  .slot-label {
+    font-size: 11px; font-family: 'IBM Plex Mono', monospace;
+    color: var(--gray-400); font-weight: 500; margin-bottom: 6px;
+    pointer-events: none;
+  }
+  .slot-icon { font-size: 20px; pointer-events: none; margin-bottom: 2px; }
+  .slot-preview {
+    position: absolute; inset: 0;
+    object-fit: cover; width: 100%; height: 100%;
+    display: none;
+  }
+  .slot-preview.show { display: block; }
+  .slot-check {
+    position: absolute; top: 6px; right: 6px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--success); color: white;
+    display: none; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600;
+  }
+  .slot-check.show { display: flex; }
+
+  /* Freq question */
+  .freq-wrap textarea {
+    resize: vertical; min-height: 80px;
+  }
+
+  /* Submit */
+  .submit-area { margin-top: 24px; }
+  .btn-submit {
+    width: 100%; padding: 14px;
+    background: var(--red); color: white;
+    border: none; border-radius: var(--radius-sm);
+    font-size: 15px; font-weight: 600;
+    font-family: 'IBM Plex Sans Thai', sans-serif;
+    cursor: pointer; letter-spacing: 0.02em;
+    transition: background 0.15s, transform 0.1s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-submit:hover { background: var(--red-dark); }
+  .btn-submit:active { transform: scale(0.99); }
+  .btn-submit:disabled { background: var(--gray-400); cursor: not-allowed; transform: none; }
+
+  /* Progress bar during submit */
+  .submit-progress {
+    display: none; margin-top: 16px;
+  }
+  .submit-progress.show { display: block; }
+  .progress-bar {
+    height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: var(--red);
+    width: 0%; transition: width 0.4s ease;
+    border-radius: 2px;
+  }
+  .progress-text {
+    font-size: 12px; color: var(--gray-400);
+    margin-top: 8px; text-align: center;
+  }
+
+  /* Success state */
+  .success-card {
+    display: none;
+    background: white; border-radius: var(--radius);
+    border: 1.5px solid #B8F0D8;
+    padding: 40px 28px; text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .success-card.show { display: block; }
+  .success-icon {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--success); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; margin: 0 auto 16px;
+  }
+  .success-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+  .success-sub { font-size: 14px; color: var(--gray-400); margin-bottom: 24px; }
+  .btn-again {
+    padding: 10px 24px;
+    background: var(--gray-100); color: var(--gray-700);
+    border: none; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 500;
+    font-family: 'IBM Plex Sans Thai', sans-serif;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .btn-again:hover { background: var(--border); }
+
+  /* Error msg */
+  .err { font-size: 12px; color: var(--red); margin-top: 5px; display: none; }
+  .err.show { display: block; }
+
+  /* Config banner */
+  .config-banner {
+    background: #FFFBEB; border: 1px solid #FDE68A;
+    border-radius: var(--radius-sm); padding: 12px 16px;
+    font-size: 12px; color: #92400E; margin-bottom: 20px;
+    line-height: 1.6;
+  }
+  .config-banner code {
+    font-family: 'IBM Plex Mono', monospace; background: rgba(0,0,0,0.06);
+    padding: 1px 4px; border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-inner">
+    <div class="logo-box">BC</div>
+    <div>
+      <div class="header-title">BigC Champion</div>
+      <div class="header-sub">store-audit / photo-submit</div>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- Config banner (ซ่อนได้หลัง deploy จริง) -->
+  <div class="config-banner" id="configBanner">
+    ⚙️ <strong>Dev mode:</strong> เปลี่ยน <code>BACKEND_URL</code> และ <code>DB_URL</code> ในโค้ด JS ให้ตรงกับ backend จริงก่อน deploy
+  </div>
+
+  <!-- Steps -->
+  <div class="steps">
+    <div class="step active" id="step1">
+      <div class="step-num">1</div>
+      <span>ยืนยันตัวตน</span>
+    </div>
+    <div class="step-line" id="line1"></div>
+    <div class="step" id="step2">
+      <div class="step-num">2</div>
+      <span>แนบรูปภาพ</span>
+    </div>
+    <div class="step-line" id="line2"></div>
+    <div class="step" id="step3">
+      <div class="step-num">3</div>
+      <span>ส่งข้อมูล</span>
+    </div>
+  </div>
+
+  <div id="formArea">
+
+    <!-- Card 1: ยืนยันตัวตน -->
+    <div class="card">
+      <div class="card-title">ข้อมูลพนักงาน</div>
+
+      <div class="field">
+        <label>Employee ID <span>*</span></label>
+        <div class="id-wrap">
+          <input type="text" id="empId" placeholder="กรอกรหัสพนักงาน เช่น 366033"
+            oninput="lookupEmployee(this.value)" autocomplete="off">
+          <div class="id-spinner" id="idSpinner"></div>
+        </div>
+        <div class="err" id="empIdErr">ไม่พบรหัสพนักงานนี้ในระบบ</div>
+        <div class="autofill-badge" id="autofillBadge">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <circle cx="7" cy="7" r="7" fill="#00A86B"/>
+            <path d="M4 7l2 2 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span id="autofillText">พบข้อมูล: —</span>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>ชื่อพนักงาน</label>
+          <input type="text" id="empName" disabled placeholder="ขึ้นอัตโนมัติ">
+        </div>
+        <div class="field">
+          <label>Store Code</label>
+          <input type="text" id="storeCode" disabled placeholder="ขึ้นอัตโนมัติ">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>ชื่อสาขา</label>
+        <input type="text" id="storeName" disabled placeholder="ขึ้นอัตโนมัติ">
+      </div>
+
+      <div class="field">
+        <label>วันที่ตรวจ <span>*</span></label>
+        <input type="date" id="visitDate" value="">
+      </div>
+    </div>
+
+    <!-- Card 2: รูป HCL -->
+    <div class="card">
+      <div class="card-title">รูปภาพ HCL</div>
+
+      <div class="photo-section">
+        <div class="photo-section-label">
+          <span class="photo-tag">HCL 1</span>
+          <span class="photo-desc">ชั้นวาง / Shelf</span>
+        </div>
+        <div class="upload-grid">
+          <div class="upload-slot" id="slot-HCL1.1">
+            <input type="file" accept="image/*" onchange="handlePhoto(this,'HCL1.1')">
+            <img class="slot-preview" id="prev-HCL1.1">
+            <div class="slot-check" id="chk-HCL1.1">✓</div>
+            <div class="slot-icon">📷</div>
+            <div class="slot-label">HCL 1.1</div>
+          </div>
+          <div class="upload-slot" id="slot-HCL1.2">
+            <input type="file" accept="image/*" onchange="handlePhoto(this,'HCL1.2')">
+            <img class="slot-preview" id="prev-HCL1.2">
+            <div class="slot-check" id="chk-HCL1.2">✓</div>
+            <div class="slot-icon">📷</div>
+            <div class="slot-label">HCL 1.2</div>
+          </div>
+          <div class="upload-slot" id="slot-HCL1.3">
+            <input type="file" accept="image/*" onchange="handlePhoto(this,'HCL1.3')">
+            <img class="slot-preview" id="prev-HCL1.3">
+            <div class="slot-check" id="chk-HCL1.3">✓</div>
+            <div class="slot-icon">📷</div>
+            <div class="slot-label">HCL 1.3</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="photo-section">
+        <div class="photo-section-label">
+          <span class="photo-tag">HCL 2</span>
+          <span class="photo-desc">ป้าย / Signage</span>
+        </div>
+        <div class="upload-grid">
+          <div class="upload-slot" id="slot-HCL2.1">
+            <input type="file" accept="image/*" onchange="handlePhoto(this,'HCL2.1')">
+            <img class="slot-preview" id="prev-HCL2.1">
+            <div class="slot-check" id="chk-HCL2.1">✓</div>
+            <div class="slot-icon">📷</div>
+            <div class="slot-label">HCL 2.1</div>
+          </div>
+          <div class="upload-slot" id="slot-HCL2.2">
+            <input type="file" accept="image/*" onchange="handlePhoto(this,'HCL2.2')">
+            <img class="slot-preview" id="prev-HCL2.2">
+            <div class="slot-check" id="chk-HCL2.2">✓</div>
+            <div class="slot-icon">📷</div>
+            <div class="slot-label">HCL 2.2</div>
+          </div>
+          <div class="upload-slot" id="slot-HCL2.3">
+            <input type="file" accept="image/*" onchange="handlePhoto(this,'HCL2.3')">
+            <img class="slot-preview" id="prev-HCL2.3">
+            <div class="slot-check" id="chk-HCL2.3">✓</div>
+            <div class="slot-icon">📷</div>
+            <div class="slot-label">HCL 2.3</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="photo-section">
+        <div class="photo-section-label">
+          <span class="photo-tag">HCL 3</span>
+          <span class="photo-desc">สินค้า / Product</span>
+        </div>
+        <div class="upload-grid">
+          <div class="upload-slot" id="slot-HCL3.1">
+            <input type="file" accept="image/*" onchange="handlePhoto(this,'HCL3.1')">
+            <img class="slot-preview" id="prev-HCL3.1">
+            <div class="slot-check" id="chk-HCL3.1">✓</div>
+            <div class="slot-icon">📷</div>
+            <div class="slot-label">HCL 3.1</div>
+          </div>
+          <div class="upload-slot" id="slot-HCL3.2">
+            <input type="file" accept="image/*" onchange="handlePhoto(this,'HCL3.2')">
+            <img class="slot-preview" id="prev-HCL3.2">
+            <div class="slot-check" id="chk-HCL3.2">✓</div>
+            <div class="slot-icon">📷</div>
+            <div class="slot-label">HCL 3.2</div>
+          </div>
+          <div class="upload-slot" id="slot-HCL3.3">
+            <input type="file" accept="image/*" onchange="handlePhoto(this,'HCL3.3')">
+            <img class="slot-preview" id="prev-HCL3.3">
+            <div class="slot-check" id="chk-HCL3.3">✓</div>
+            <div class="slot-icon">📷</div>
+            <div class="slot-label">HCL 3.3</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: รูป BGC -->
+    <div class="card">
+      <div class="card-title">รูปภาพ BGC</div>
+
+      <div id="bgcToggleWrap" style="margin-bottom:16px">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;font-weight:400">
+          <input type="checkbox" id="hasBgc" onchange="toggleBgc(this.checked)"
+            style="width:16px;height:16px;accent-color:var(--red)">
+          สาขานี้มีส่วน BGC
+        </label>
+      </div>
+
+      <div id="bgcPhotos" style="display:none">
+        <!-- BGC 1-5 จะโหลดด้วย JS -->
+      </div>
+    </div>
+
+    <!-- Card 4: คำถามเพิ่มเติม -->
+    <div class="card">
+      <div class="card-title">คำถามเพิ่มเติม</div>
+      <div class="field freq-wrap">
+        <label>Freq. Question <span style="color:var(--gray-400);font-weight:400">(ถ้ามี)</span></label>
+        <textarea id="freqQ" placeholder="พิมพ์คำถามหรือข้อสังเกตจากการตรวจสาขา..."></textarea>
+      </div>
+    </div>
+
+    <!-- Submit -->
+    <div class="submit-area">
+      <button class="btn-submit" id="submitBtn" onclick="handleSubmit()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M2 8l4 4 8-8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        ส่งข้อมูล
+      </button>
+      <div class="submit-progress" id="submitProgress">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-text" id="progressText">กำลังอัปโหลดรูปภาพ...</div>
+      </div>
+    </div>
+
+  </div><!-- end formArea -->
+
+  <!-- Success -->
+  <div class="success-card" id="successCard">
+    <div class="success-icon">✓</div>
+    <div class="success-title">ส่งข้อมูลสำเร็จ!</div>
+    <div class="success-sub" id="successSub">บันทึกข้อมูลเรียบร้อยแล้ว</div>
+    <button class="btn-again" onclick="resetForm()">ส่งข้อมูลสาขาถัดไป</button>
+  </div>
+
+</main>
+
+<script>
+// ============================================================
+// CONFIG — เปลี่ยนก่อน deploy
+// ============================================================
+const BACKEND_URL = 'http://localhost:8000'; // URL ของ Python backend
+const DB_EXCEL_URL = 'YOUR_ONEDRIVE_PUBLIC_LINK'; // link ดาวน์โหลด Excel db ตรงๆ
+// ============================================================
+
+const photos = {}; // { 'HCL1.1': File, ... }
+let empData = null;
+let lookupTimer = null;
+
+// ---- ตั้งค่าวันที่ default เป็นวันนี้ ----
+document.getElementById('visitDate').value = new Date().toISOString().split('T')[0];
+
+// ---- สร้าง BGC slots ----
+const BGC_GROUPS = [
+  {num:1, label:'ชั้นวาง / Shelf'},
+  {num:2, label:'ป้าย / Signage'},
+  {num:3, label:'สินค้า / Product'},
+  {num:4, label:'โปรโมชั่น / Promo'},
+  {num:5, label:'อื่นๆ / Other'},
+];
+function buildBgcSlots() {
+  const wrap = document.getElementById('bgcPhotos');
+  wrap.innerHTML = BGC_GROUPS.map(g => `
+    <div class="photo-section">
+      <div class="photo-section-label">
+        <span class="photo-tag bgc">BGC ${g.num}</span>
+        <span class="photo-desc">${g.label}</span>
+      </div>
+      <div class="upload-grid">
+        ${[1,2,3].map(s => `
+          <div class="upload-slot" id="slot-BGC${g.num}.${s}">
+            <input type="file" accept="image/*" onchange="handlePhoto(this,'BGC${g.num}.${s}')">
+            <img class="slot-preview" id="prev-BGC${g.num}.${s}">
+            <div class="slot-check" id="chk-BGC${g.num}.${s}">✓</div>
+            <div class="slot-icon">📷</div>
+            <div class="slot-label">BGC ${g.num}.${s}</div>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+buildBgcSlots();
+
+function toggleBgc(checked) {
+  document.getElementById('bgcPhotos').style.display = checked ? 'block' : 'none';
+}
+
+// ---- Lookup employee ----
+function lookupEmployee(val) {
+  clearTimeout(lookupTimer);
+  const badge = document.getElementById('autofillBadge');
+  const err = document.getElementById('empIdErr');
+  badge.classList.remove('show');
+  err.classList.remove('show');
+  ['empName','storeCode','storeName'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  empData = null;
+  if (val.length < 3) return;
+
+  document.getElementById('idSpinner').classList.add('show');
+  lookupTimer = setTimeout(() => fetchEmployee(val), 500);
+}
+
+async function fetchEmployee(empId) {
+  const spinner = document.getElementById('idSpinner');
+  const badge = document.getElementById('autofillBadge');
+  const err = document.getElementById('empIdErr');
+
+  try {
+    // --- DEV MODE: ใช้ mock data ถ้า backend ยังไม่พร้อม ---
+    const mockDB = [
+      {employeeId:'366033', employeeName:'นางสาวสุธิชา ด่านกลาง', storeCode:'15044', storeName:'BMK โนนสูง'},
+      {employeeId:'333118', employeeName:'คุณสุจิรา เหมบุตร', storeCode:'11224', storeName:'บิ๊กซี-กาญจนบุรี'},
+      {employeeId:'80360',  employeeName:'นางสาวธิติมา โสโยธา', storeCode:'11243', storeName:'บิ๊กซี-พังโคน'},
+      {employeeId:'143357', employeeName:'คุณกรรณิการ์ หมื่นแสะ', storeCode:'11164', storeName:'บิ๊กซี-สระแก้ว'},
+      {employeeId:'114670', employeeName:'ราตรี มากวงศ์', storeCode:'11142', storeName:'บิ๊กซี-เพชรเกษม'},
+    ];
+
+    let found = null;
+    if (BACKEND_URL === 'http://localhost:8000') {
+      found = mockDB.find(e => e.employeeId === empId.trim());
+    } else {
+      const res = await fetch(`${BACKEND_URL}/employee/${empId}`);
+      if (res.ok) found = await res.json();
+    }
+
+    spinner.classList.remove('show');
+    if (found) {
+      empData = found;
+      document.getElementById('empName').value = found.employeeName;
+      document.getElementById('storeCode').value = found.storeCode;
+      document.getElementById('storeName').value = found.storeName;
+      document.getElementById('autofillText').textContent = `${found.employeeName} — ${found.storeName}`;
+      badge.classList.add('show');
+      updateSteps(2);
+    } else {
+      err.classList.add('show');
+    }
+  } catch(e) {
+    spinner.classList.remove('show');
+    err.classList.add('show');
+  }
+}
+
+// ---- Photo handler ----
+function handlePhoto(input, slotId) {
+  const file = input.files[0];
+  if (!file) return;
+  photos[slotId] = file;
+  const prev = document.getElementById(`prev-${slotId}`);
+  const chk = document.getElementById(`chk-${slotId}`);
+  const slot = document.getElementById(`slot-${slotId}`);
+  const reader = new FileReader();
+  reader.onload = e => {
+    prev.src = e.target.result;
+    prev.classList.add('show');
+    chk.classList.add('show');
+    slot.classList.add('has-file');
+  };
+  reader.readAsDataURL(file);
+  if (Object.keys(photos).length >= 1) updateSteps(2);
+}
+
+// ---- Steps ----
+function updateSteps(active) {
+  for (let i = 1; i <= 3; i++) {
+    const el = document.getElementById(`step${i}`);
+    el.classList.remove('active','done');
+    if (i < active) el.classList.add('done');
+    else if (i === active) el.classList.add('active');
+  }
+  for (let i = 1; i <= 2; i++) {
+    const line = document.getElementById(`line${i}`);
+    line.classList.toggle('done', i < active);
+  }
+}
+
+// ---- Submit ----
+async function handleSubmit() {
+  if (!empData) {
+    alert('กรุณากรอก Employee ID ให้ถูกต้องก่อนครับ');
+    return;
+  }
+  if (Object.keys(photos).length === 0) {
+    alert('กรุณาแนบรูปภาพอย่างน้อย 1 รูปครับ');
+    return;
+  }
+
+  updateSteps(3);
+  document.getElementById('submitBtn').disabled = true;
+  const progress = document.getElementById('submitProgress');
+  const fill = document.getElementById('progressFill');
+  const text = document.getElementById('progressText');
+  progress.classList.add('show');
+
+  const photoEntries = Object.entries(photos);
+  const uploadedLinks = {};
+
+  for (let i = 0; i < photoEntries.length; i++) {
+    const [slotId, file] = photoEntries[i];
+    const pct = Math.round(((i + 1) / photoEntries.length) * 80);
+    fill.style.width = pct + '%';
+    text.textContent = `อัปโหลดรูป ${slotId} (${i+1}/${photoEntries.length})...`;
+
+    if (BACKEND_URL === 'http://localhost:8000') {
+      uploadedLinks[slotId] = `https://mock-cloudinary.com/${slotId}.jpg`;
+    } else {
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('slot', slotId);
+        fd.append('storeCode', empData.storeCode);
+        const res = await fetch(`${BACKEND_URL}/upload`, {method:'POST', body:fd});
+        const data = await res.json();
+        uploadedLinks[slotId] = data.url;
+      } catch(e) {
+        text.textContent = `❌ อัปโหลด ${slotId} ล้มเหลว`;
+      }
+    }
+  }
+
+  fill.style.width = '90%';
+  text.textContent = 'บันทึกข้อมูลลง Excel...';
+
+  const payload = {
+    storeCode: empData.storeCode,
+    storeName: empData.storeName,
+    employeeId: document.getElementById('empId').value.trim(),
+    employeeName: empData.employeeName,
+    date: document.getElementById('visitDate').value,
+    photos: uploadedLinks,
+    freqQuestion: document.getElementById('freqQ').value,
+    hasBgc: document.getElementById('hasBgc').checked,
+  };
+
+  if (BACKEND_URL !== 'http://localhost:8000') {
+    await fetch(`${BACKEND_URL}/submit`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+  }
+
+  fill.style.width = '100%';
+  await new Promise(r => setTimeout(r, 400));
+
+  document.getElementById('formArea').style.display = 'none';
+  document.getElementById('successCard').classList.add('show');
+  document.getElementById('successSub').textContent =
+    `บันทึกข้อมูลของ ${empData.employeeName} — ${empData.storeName} เรียบร้อยแล้ว`;
+}
+
+// ---- Reset ----
+function resetForm() {
+  document.getElementById('formArea').style.display = 'block';
+  document.getElementById('successCard').classList.remove('show');
+  document.getElementById('empId').value = '';
+  document.getElementById('empName').value = '';
+  document.getElementById('storeCode').value = '';
+  document.getElementById('storeName').value = '';
+  document.getElementById('freqQ').value = '';
+  document.getElementById('hasBgc').checked = false;
+  document.getElementById('bgcPhotos').style.display = 'none';
+  document.getElementById('autofillBadge').classList.remove('show');
+  document.getElementById('submitBtn').disabled = false;
+  document.getElementById('submitProgress').classList.remove('show');
+  document.getElementById('progressFill').style.width = '0%';
+  Object.keys(photos).forEach(k => delete photos[k]);
+  document.querySelectorAll('.upload-slot').forEach(slot => slot.classList.remove('has-file'));
+  document.querySelectorAll('.slot-preview').forEach(p => { p.classList.remove('show'); p.src=''; });
+  document.querySelectorAll('.slot-check').forEach(c => c.classList.remove('show'));
+  document.getElementById('visitDate').value = new Date().toISOString().split('T')[0];
+  updateSteps(1);
+}
+</script>
+</body>
+</html>
