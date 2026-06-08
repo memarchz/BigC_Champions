@@ -2,7 +2,7 @@
 .env
 .env.*
 !.env.example
-bigc_backend/.env.example
+.env.example
 
 # Python
 __pycache__/
