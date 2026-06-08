@@ -29,11 +29,11 @@ CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "")
 
 # OneDrive direct-download links ของ 2 ไฟล์ Excel
 # วิธีได้ลิ้ง: เปิดไฟล์ใน OneDrive → Share → Copy link → เปลี่ยน ?e=xxx ท้าย URL เป็น download=1
-RESPOND_EXCEL_URL  = os.getenv("RESPOND_EXCEL_URL", "")   # BigC_Champion_Respond.xlsx
-DATABASE_EXCEL_URL = os.getenv("DATABASE_EXCEL_URL", "")  # ไฟล์ employee database
+RESPOND_EXCEL_URL  = "LOCAL_TEST"   # BigC_Champion_Respond.xlsx
+DATABASE_EXCEL_URL = "LOCAL_TEST"  # ไฟล์ employee database
 
-LOCAL_RESPOND_PATH  = "/tmp/respond.xlsx"
-LOCAL_DATABASE_PATH = "/tmp/database.xlsx"
+LOCAL_RESPOND_PATH  = "Test.xlsx"
+LOCAL_DATABASE_PATH = "Test.xlsx"
 # ============================================================
 
 cloudinary.config(
@@ -73,46 +73,45 @@ def root():
 
 @app.get("/employee/{emp_id}")
 async def get_employee(emp_id: str):
-    """ค้นหาพนักงานจาก Database sheet"""
     try:
-        if DATABASE_EXCEL_URL:
-            await download_excel(DATABASE_EXCEL_URL, LOCAL_DATABASE_PATH)
+        import openpyxl
+        import os
+        from fastapi import HTTPException
+
+        excel_filename = "Test.xlsx"
+
+        if not os.path.exists(excel_filename):
+            print(f"❌ หาไฟล์ {excel_filename} ไม่เจอในโฟลเดอร์โครงการ!")
+            raise HTTPException(status_code=404, detail="ไม่พบไฟล์ Excel รายชื่อพนักงาน")
+
+        wb = openpyxl.load_workbook(excel_filename, data_only=True)
         
-        if not os.path.exists(LOCAL_DATABASE_PATH):
-            raise HTTPException(status_code=503, detail="Database file not available")
+        # 🟢 พี่ตั้งชื่อแท็บเผื่อไว้ให้ ถ้าของหนูชื่อแท็บ "Employee" หรือชื่ออื่น สามารถเปลี่ยนตรงนี้ได้เลยนะครับ
+        sheet_name = "Employee" 
+        if sheet_name not in wb.sheetnames:
+            sheet_name = wb.sheetnames[0] # ถ้าชื่อไม่ตรง ให้มันดึงแท็บแรกสุดของไฟล์มาใช้แทนเพื่อความปลอดภัย
+            
+        ws = wb[sheet_name]
 
-        wb = load_workbook(LOCAL_DATABASE_PATH, read_only=True, data_only=True)
-        ws = wb.active
-
-        headers = [str(c.value).strip() if c.value else "" for c in next(ws.iter_rows(min_row=1, max_row=1))]
-
-        # หาตำแหน่ง column (case-insensitive)
-        col = {h.lower(): i for i, h in enumerate(headers)}
-        idx_code  = next((col[k] for k in col if "store code" in k or k == "store_code"), None)
-        idx_sname = next((col[k] for k in col if "store name" in k or k == "store_name" or "storename" in k), None)
-        idx_eid   = next((col[k] for k in col if "employee id" in k or k == "employee_id"), None)
-        idx_ename = next((col[k] for k in col if "employee name" in k or k == "employee_name"), None)
-
-        if idx_eid is None:
-            raise HTTPException(status_code=500, detail="ไม่พบคอลัมน์ Employee ID ใน database")
-
-        emp_id_clean = emp_id.strip()
-
+        # เริ่มวิ่งไล่ตรวจทีละแถว (ข้ามหัวตารางแถวที่ 1)
         for row in ws.iter_rows(min_row=2, values_only=True):
-            cell_id = str(row[idx_eid]).strip().split(".")[0]  # ตัด .0 ออก
-            if cell_id == emp_id_clean:
+            # ตรวจสอบว่าแถวนั้นมีข้อมูล และคอลัมน์ C (index 2) ตรงกับรหัสพนักงานที่พิมพ์มาไหม
+            if len(row) >= 4 and row[2] is not None and str(row[2]).strip() == emp_id.strip():
+                print(f"🟢 เจอข้อมูลแล้ว! พนักงาน: {row[3]} สังกัดสาขา: {row[1]}")
                 return {
-                    "employeeId":   emp_id_clean,
-                    "employeeName": str(row[idx_ename]) if idx_ename is not None else "",
-                    "storeCode":    str(row[idx_code]).split(".")[0] if idx_code is not None else "",
-                    "storeName":    str(row[idx_sname]) if idx_sname is not None else "",
+                    "employeeId": str(row[2]).strip(),   # คอลัมน์ C = รหัสพนักงาน
+                    "employeeName": str(row[3]).strip(), # คอลัมน์ D = ชื่อพนักงาน
+                    "storeCode": str(row[0]).strip(),    # คอลัมน์ A = รหัสสาขา
+                    "storeName": str(row[1]).strip()     # คอลัมน์ B = ชื่อสาขา
                 }
 
-        raise HTTPException(status_code=404, detail="ไม่พบรหัสพนักงานนี้")
+        print(f"🔍 พยายามค้นหาเลข {emp_id} ในคอลัมน์ C แล้วแต่ไม่พบในตาราง")
+        raise HTTPException(status_code=404, detail="ไม่พบรหัสพนักงานนี้ในระบบ")
 
-    except HTTPException:
-        raise
+    except HTTPException as http_err:
+        raise http_err
     except Exception as e:
+        print(f"❌ เกิดข้อผิดพลาดฝั่งระบบ Excel: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -153,70 +152,116 @@ class SubmitPayload(BaseModel):
 
 
 @app.post("/submit")
-async def submit_respond(payload: SubmitPayload):
-    """เพิ่มแถวใหม่ใน Respond.xlsx แล้วอัปโหลดกลับ OneDrive"""
+async def submit_form(payload: dict):
     try:
-        # ดาวน์โหลด Excel ล่าสุดมาก่อน
-        if RESPOND_EXCEL_URL:
-            await download_excel(RESPOND_EXCEL_URL, LOCAL_RESPOND_PATH)
+        import openpyxl
+        import os
+        from fastapi import HTTPException
+        from datetime import datetime
 
-        if not os.path.exists(LOCAL_RESPOND_PATH):
-            # สร้างใหม่ถ้าไม่มี
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = "Respond"
-            headers = [
-                "Store Code","Store Name","Employee ID","Employee Name","Date",
-                "HCL1.1","HCL1.2","HCL1.3",
-                "HCL2.1","HCL2.2","HCL2.3",
-                "HCL3.1","HCL3.2","HCL3.3",
-                "BGC1.1","BGC1.2","BGC1.3",
-                "BGC2.1","BGC2.2","BGC2.3",
-                "BGC3.1","BGC3.2","BGC3.3",
-                "BGC4.1","BGC4.2","BGC4.3",
-                "BGC5.1","BGC5.2","BGC5.3",
-                "Freq.Qs.","HAS_BGC",
-            ]
-            ws.append(headers)
-        else:
-            wb = load_workbook(LOCAL_RESPOND_PATH)
-            ws = wb["Respond"] if "Respond" in wb.sheetnames else wb.active
+        excel_path = "Test.xlsx"
+        if not os.path.exists(excel_path):
+            raise HTTPException(status_code=404, detail="ไม่พบไฟล์ Test.xlsx ในโฟลเดอร์")
 
-        # map headers → column index
-        header_row = [str(c.value).strip() if c.value else "" for c in ws[1]]
-        h_idx = {h: i+1 for i, h in enumerate(header_row)}
+        wb = openpyxl.load_workbook(excel_path)
+        sheet_name = "Respond"
+        if sheet_name not in wb.sheetnames:
+            raise HTTPException(status_code=404, detail=f"ไม่พบแท็บที่ชื่อว่า {sheet_name} ในไฟล์ Excel")
+        ws = wb[sheet_name]
 
-        # สร้างแถวใหม่
-        new_row = [""] * len(header_row)
+        # 1. ดึงข้อมูลพื้นฐานจากหน้าเว็บ
+        store_code = payload.get("storeCode", "")
+        store_name = payload.get("storeName", "")
+        emp_id = payload.get("employeeId", "")
+        emp_name = payload.get("employeeName", "")
+        visit_date = payload.get("date", "")  # รูปแบบ "YYYY-MM-DD"
+        freq_q = payload.get("freqQuestion", "")
+        has_bgc = "YES" if payload.get("hasBgc") else "NO"
 
-        def set_col(name, val):
-            if name in h_idx:
-                new_row[h_idx[name] - 1] = val
+        # ดึงปีและเดือนจากวันที่ตรวจ
+        year_val = ""
+        month_val = ""
+        if visit_date:
+            try:
+                date_obj = datetime.strptime(visit_date, "%Y-%m-%d")
+                year_val = date_obj.year    # เช่น 2026
+                month_val = date_obj.month  # เช่น 6
+            except:
+                pass
 
-        set_col("Store Code",    payload.storeCode)
-        set_col("Store Name",    payload.storeName)
-        set_col("Employee ID",   payload.employeeId)
-        set_col("Employee Name", payload.employeeName)
-        set_col("Date",          payload.date)
-        set_col("HAS_BGC",       "YES" if payload.hasBgc else "NO")
-        set_col("Freq.Qs.",      payload.freqQuestion or "")
+        # ดึงลิงก์รูปภาพทั้งหมดที่ถูกส่งมาจากหน้าเว็บ
+        photos = payload.get("photos", {})
 
-        for slot_key, url in payload.photos.items():
-            # normalize: HCL1.1 → HCL1.1
-            col_name = re.sub(r'(\d)(\d)', r'\1.\2', slot_key) if '.' not in slot_key else slot_key
-            set_col(col_name, url)
+        # 🟢 เริ่มจัดแถวข้อมูล (new_row) ไล่ทีละคอลัมน์ตามไฟล์ Excel จริงของหนู
+        
+        # คอลัมน์ A - E (ลำดับ 1-5)
+        new_row = [
+            store_code,    # A
+            store_name,    # B
+            emp_id,        # C
+            emp_name,      # D
+            visit_date     # E
+        ]
 
+        # คอลัมน์ F - N (ลำดับ 6-14): รูป HCL แบบมีจุด (HCL1.1 ถึง HCL3.3)
+        hcl_dots = [
+            "HCL1.1", "HCL1.2", "HCL1.3",
+            "HCL2.1", "HCL2.2", "HCL2.3",
+            "HCL3.1", "HCL3.2", "HCL3.3"
+        ]
+        for slot in hcl_dots:
+            new_row.append(photos.get(slot, ""))
+
+        # คอลัมน์ O - AC (ลำดับ 15-29): รูป BGC แบบมีจุด (BGC1.1 ถึง BGC5.3)
+        bgc_dots = [
+            "BGC1.1", "BGC1.2", "BGC1.3",
+            "BGC2.1", "BGC2.2", "BGC2.3",
+            "BGC3.1", "BGC3.2", "BGC3.3",
+            "BGC4.1", "BGC4.2", "BGC4.3",
+            "BGC5.1", "BGC5.2", "BGC5.3"
+        ]
+        for slot in bgc_dots:
+            new_row.append(photos.get(slot, ""))
+
+        # คอลัมน์ AD - AE (ลำดับ 30-31)
+        new_row.append(freq_q)   # AD (Freq.Qs.)
+        new_row.append(has_bgc)  # AE (HAS_BGC)
+
+        # คอลัมน์ AF - AN (ลำดับ 32-40): รูป HCL แบบไม่มีจุด (HCL11 ถึง HCL33)
+        # เผื่อหน้าเว็บส่งมาทั้งสองแบบ หรือกันเหนียว พี่จะเช็กทั้งแบบมีจุดและไม่มีจุดให้เลยครับ
+        hcl_no_dots = [
+            ("HCL11", "HCL1.1"), ("HCL12", "HCL1.2"), ("HCL13", "HCL1.3"),
+            ("HCL21", "HCL2.1"), ("HCL22", "HCL2.2"), ("HCL23", "HCL2.3"),
+            ("HCL31", "HCL3.1"), ("HCL32", "HCL3.2"), ("HCL33", "HCL3.3")
+        ]
+        for slot_no, slot_dot in hcl_no_dots:
+            # ถ้ามีค่าส่งมาจากชื่อไหนก็นำค่านั้นมาใส่
+            val = photos.get(slot_no, photos.get(slot_dot, ""))
+            new_row.append(val)
+
+        # คอลัมน์ AO - BC (ลำดับ 41-55): รูป BGC แบบไม่มีจุด (BGC11 ถึง BGC53)
+        bgc_no_dots = [
+            ("BGC11", "BGC1.1"), ("BGC12", "BGC1.2"), ("BGC13", "BGC1.3"),
+            ("BGC21", "BGC2.1"), ("BGC22", "BGC2.2"), ("BGC23", "BGC2.3"),
+            ("BGC31", "BGC3.1"), ("BGC32", "BGC3.2"), ("BGC33", "BGC3.3"),
+            ("BGC41", "BGC4.1"), ("BGC42", "BGC4.2"), ("BGC43", "BGC4.3"),
+            ("BGC51", "BGC5.1"), ("BGC52", "BGC5.2"), ("BGC53", "BGC5.3")
+        ]
+        for slot_no, slot_dot in bgc_no_dots:
+            val = photos.get(slot_no, photos.get(slot_dot, ""))
+            new_row.append(val)
+
+        # คอลัมน์ BD - BE (ลำดับ 56-57): สองช่องสุดท้ายของตาราง
+        new_row.append(year_val)   # BD (Year)
+        new_row.append(month_val)  # BE (Month)
+
+        # 3. บันทึกข้อมูลและกดเซฟไฟล์ลงเครื่องคอมพิวเตอร์
         ws.append(new_row)
-        wb.save(LOCAL_RESPOND_PATH)
-
-        # TODO: อัปโหลด LOCAL_RESPOND_PATH กลับขึ้น OneDrive
-        # ตอนนี้บันทึกที่ /tmp ก่อน — เพิ่ม Microsoft Graph upload ตรงนี้ได้ทีหลัง
-
-        return {
-            "status": "success",
-            "message": f"บันทึกข้อมูล {payload.employeeName} — {payload.storeName} เรียบร้อย",
-            "row_added": True,
-        }
-
+        wb.save(excel_path)
+        
+        print(f"🟢 จัดคอลลัมน์เป๊ะแล้ว! บันทึกข้อมูลของพนักงานรหัส {emp_id} ลงช่องถูกต้องเรียบร้อย")
+        return {"status": "success", "message": "บันทึกข้อมูลลงตาราง Excel ล็อกถูกต้องเรียบร้อยแล้วค่ะ"}
+        
     except Exception as e:
+        print(f"❌ เออเรอร์ตอนเซฟข้อมูล: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
